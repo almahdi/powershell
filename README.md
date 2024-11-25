@@ -27,6 +27,11 @@ A utility that allows you to type text into any window programmatically. Useful 
 - Simple and intuitive GUI interface
 
 #### Usage
+##### Remote
+```pwsh
+iex (iwr https://raw.githubusercontent.com/almahdi/powershell/refs/heads/main/type-in-window.ps1).Content
+```
+##### Local
 1. Run the script: `.\type-in-window.ps1`
 2. Select the target window from the dropdown
 3. Enter the text you want to type
