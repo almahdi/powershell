@@ -16,10 +16,17 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key every 30 seconds.
 #>
 
+# Create a new WScript.Shell COM object
 $wshell = New-Object -ComObject wscript.shell;
+
+# Infinite loop to keep the script running
 while($true) {
-$wshell.sendKeys("{SCROLLLOCK}");
-Start-Sleep -Milliseconds 300
-$wshell.sendKeys("{SCROLLLOCK}");
-Start-Sleep -Seconds 30
+    # Send the SCROLLLOCK key to toggle it on
+    $wshell.sendKeys("{SCROLLLOCK}");
+    # Wait for 300 milliseconds
+    Start-Sleep -Milliseconds 300
+    # Send the SCROLLLOCK key to toggle it off
+    $wshell.sendKeys("{SCROLLLOCK}");
+    # Wait for 30 seconds before repeating
+    Start-Sleep -Seconds 30
 }
