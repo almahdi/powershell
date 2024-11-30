@@ -7,6 +7,10 @@ A collection of PowerShell scripts and modules that automate various tasks in en
   - [Type in Window](#type-in-window)
     - [Features](#features)
     - [Usage](#usage)
+  - [Don't Sleep](#dont-sleep)
+    - [Features](#features-1)
+    - [Usage](#usage-1)
+    
 - [Requirements](#requirements)
 - [Author](#author)
 - [License](#license)
@@ -36,6 +40,29 @@ iex (iwr https://raw.githubusercontent.com/almahdi/powershell/refs/heads/main/ty
 2. Select the target window from the dropdown
 3. Enter the text you want to type
 4. Click "Type Text in Selected Window"
+
+### Don't Sleep
+A utility that prevents your computer from going to sleep by simulating a key press (SCROLLLOCK) every 30 seconds. Useful for:
+- Keeping your computer awake during long downloads
+- Preventing sleep during remote sessions
+- Maintaining presence status in communication apps
+- Any scenario where system sleep is undesirable
+
+#### Features
+- Zero configuration required
+- Lightweight and resource-friendly
+- Uses built-in Windows features
+- No administrative privileges needed
+
+#### Usage
+##### Remote
+```pwsh
+iex (iwr https://raw.githubusercontent.com/almahdi/powershell/refs/heads/main/dont-sleep.ps1).Content
+```
+##### Local
+1. Run the script: `.\dont-sleep.ps1`
+2. The script will start running in the background
+3. To stop the script, close the PowerShell window
 
 ## Requirements
 - Windows OS
