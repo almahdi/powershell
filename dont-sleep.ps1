@@ -16,6 +16,8 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key every 30 seconds.
 #>
 
+Write-Host "Preventing the computer from going to sleep... Press CTRL+C to stop the script." -ForegroundColor Green
+
 # Create a new WScript.Shell COM object
 $wshell = New-Object -ComObject wscript.shell;
 
