@@ -13,7 +13,7 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 #>
 
 <#
-This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key every 30 seconds.
+This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key every 20 seconds.
 #>
 
 Write-Host "Preventing the computer from going to sleep... Press CTRL+C to stop the script." -ForegroundColor Green
@@ -30,5 +30,5 @@ while($true) {
     # Send the SCROLLLOCK key to toggle it off
     $wshell.sendKeys("{SCROLLLOCK}");
     # Wait for 30 seconds before repeating
-    Start-Sleep -Seconds 30
+    Start-Sleep -Seconds 20
 }
