@@ -133,11 +133,11 @@ begin {
         $form.Add_Load({
             $listBox.Items.AddRange($allItems)
             if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
-            # Set-ActiveWindow can be problematic on form load, focusing on the inputbox is better.
-            # Set-ActiveWindow -WindowHandle $form.Handle
         })
 
         $form.Add_Shown({
+            # Forcefully bring the form to the foreground and then focus the input box.
+            Set-ActiveWindow -WindowHandle $form.Handle
             $inputBox.Focus()
         })
 
