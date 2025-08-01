@@ -112,19 +112,39 @@ function Show-Menu {
     $allItems = $Items
     $script:selectedItem = $null
 
-    # ✅ CHANGED: Use our own function to bring the menu to the foreground.
     $form.Add_Load({
         $listBox.Items.AddRange($allItems)
         if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
-        
-        # Use our robust function to activate the menu form itself.
         Set-ActiveWindow -WindowHandle $form.Handle
-        
-        # After the form is active, set focus to the input box.
+    })
+
+    # ✅ CHANGED: Use the 'Shown' event to set initial focus correctly.
+    $form.Add_Shown({
         $inputBox.Focus()
     })
 
-    # (No changes to other event handlers)
+    # ✅ CHANGED: More assertive handling of arrow keys.
+    $inputBox.Add_KeyDown({
+        $e = $_
+        switch ($e.KeyCode) {
+            'Enter' {
+                if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() }
+                $e.Handled = $true
+                $e.SuppressKeyPress = $true
+            }
+            'ArrowDown' {
+                if ($listBox.SelectedIndex + 1 -lt $listBox.Items.Count) { $listBox.SelectedIndex++ }
+                $e.Handled = $true
+                $e.SuppressKeyPress = $true
+            }
+            'ArrowUp' {
+                if ($listBox.SelectedIndex -gt 0) { $listBox.SelectedIndex-- }
+                $e.Handled = $true
+                $e.SuppressKeyPress = $true
+            }
+        }
+    })
+
     $inputBox.Add_TextChanged({
         $filterText = $inputBox.Text
         $listBox.BeginUpdate(); $listBox.Items.Clear()
@@ -133,14 +153,7 @@ function Show-Menu {
         if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
         $listBox.EndUpdate()
     })
-    $inputBox.Add_KeyDown({
-        $e = $_
-        switch ($e.KeyCode) {
-            'Enter' { if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() }; $e.SuppressKeyPress = $true }
-            'ArrowDown' { if ($listBox.SelectedIndex + 1 -lt $listBox.Items.Count) { $listBox.SelectedIndex++ }; $e.SuppressKeyPress = $true }
-            'ArrowUp' { if ($listBox.SelectedIndex -gt 0) { $listBox.SelectedIndex-- }; $e.SuppressKeyPress = $true }
-        }
-    })
+    
     $form.Add_KeyDown({ if ($_.KeyCode -eq 'Escape') { $script:selectedItem = $null; $form.Close() } })
     $listBox.Add_DoubleClick({ if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() } })
 
