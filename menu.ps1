@@ -93,7 +93,7 @@ function Show-Menu {
     $form.FormBorderStyle = 'None'
     $form.StartPosition = 'CenterScreen'
     $form.TopMost = $true
-    $form.KeyPreview = $true # This property is crucial for the form to get key events first
+    $form.KeyPreview = $true
     $form.Size = New-Object System.Drawing.Size(600, 350)
     
     $inputBox = New-Object System.Windows.Forms.TextBox
@@ -122,7 +122,6 @@ function Show-Menu {
         $inputBox.Focus()
     })
 
-    # ✅ CHANGED: The text box only needs to handle the Enter key now.
     $inputBox.Add_KeyDown({
         $e = $_
         if ($e.KeyCode -eq 'Enter') {
@@ -144,7 +143,7 @@ function Show-Menu {
         $listBox.EndUpdate()
     })
     
-    # ✅ CHANGED: The form now handles global keys like Escape and the Arrows.
+    # ✅ CHANGED: The form's key handler now fully suppresses the arrow keys.
     $form.Add_KeyDown({
         $e = $_
         switch ($e.KeyCode) {
@@ -157,17 +156,30 @@ function Show-Menu {
                     $newIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
                     $listBox.SelectedIndex = $newIndex
                 }
-                # Mark the event as handled to prevent the text box from using it.
                 $e.Handled = $true
+                $e.SuppressKeyPress = $true
             }
             'ArrowUp' {
                 if ($listBox.Items.Count -gt 0) {
                     $newIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
                     $listBox.SelectedIndex = $newIndex
                 }
-                # Mark the event as handled to prevent the text box from using it.
                 $e.Handled = $true
+                $e.SuppressKeyPress = $true
             }
+        }
+    })
+
+    # ✅ CHANGED: Add a KeyDown handler to the ListBox to accept the Enter key.
+    $listBox.Add_KeyDown({
+        $e = $_
+        if ($e.KeyCode -eq 'Enter') {
+            if ($listBox.SelectedItem) {
+                $script:selectedItem = $listBox.SelectedItem
+                $form.Close()
+            }
+            $e.Handled = $true
+            $e.SuppressKeyPress = $true
         }
     })
 
