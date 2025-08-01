@@ -19,6 +19,9 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
     Provides a minimalist, filterable, and keyboard-navigable menu.
     It can be used to select from a list of items, such as open windows. The selected item object is returned to the pipeline.
 
+.PARAMETER InputObject
+    Accepts input from the pipeline to be displayed in the menu.
+
 .PARAMETER Windows
     When specified, the script lists all processes with a main window title for selection.
 
@@ -28,6 +31,10 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 .EXAMPLE
     .\menu.ps1 -Windows -Switch
     Displays the window list and, after selection, activates the chosen window.
+
+.EXAMPLE
+    "Restart", "Shutdown", "Log Off" | .\menu.ps1
+    Displays a menu with the provided strings for selection.
 #>
 
 param(
@@ -41,172 +48,189 @@ param(
     [switch]$Switch
 )
 
-# --- Required Assemblies and Win32 API Functions ---
+begin {
+    # --- Required Assemblies, Win32 API, and Helper Functions ---
+    # All definitions are placed in the 'begin' block to ensure they are
+    # loaded once before any pipeline processing begins.
 
-Add-Type -AssemblyName System.Windows.Forms
-Add-Type -AssemblyName System.Drawing
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
 
-if (-not ("PSMenuWin32Api" -as [type])) {
-    Add-Type @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class PSMenuWin32Api {
-            private const int SW_RESTORE = 9;
+    if (-not ("PSMenuWin32Api" -as [type])) {
+        Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class PSMenuWin32Api {
+                private const int SW_RESTORE = 9;
 
-            [DllImport("user32.dll")]
-            public static extern bool SetForegroundWindow(IntPtr hWnd);
+                [DllImport("user32.dll")]
+                public static extern bool SetForegroundWindow(IntPtr hWnd);
 
-            [DllImport("user32.dll")]
-            public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+                [DllImport("user32.dll")]
+                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
-            [DllImport("user32.dll")]
-            public static extern bool IsIconic(IntPtr hWnd);
-        }
+                [DllImport("user32.dll")]
+                public static extern bool IsIconic(IntPtr hWnd);
+            }
 "@
-}
-
-# --- Helper Functions ---
-
-function Get-WindowTitles {
-    Get-Process | Where-Object { $_.MainWindowTitle -ne "" } | Select-Object MainWindowTitle, Id, MainWindowHandle
-}
-
-function Set-ActiveWindow {
-    param(
-        [Parameter(Mandatory=$true)]
-        [IntPtr]$WindowHandle
-    )
-    
-    if ([PSMenuWin32Api]::IsIconic($WindowHandle)) {
-        [PSMenuWin32Api]::ShowWindow($WindowHandle, 9)
     }
-    
-    try {
-        $wshell = New-Object -ComObject wscript.shell
-        $wshell.SendKeys('%')
-        Start-Sleep -Milliseconds 50
-    } catch {
-        Write-Warning "Failed to create WScript.Shell object. Focus may not switch correctly. Error: $_"
+
+    function Get-WindowTitles {
+        Get-Process | Where-Object { $_.MainWindowTitle -ne "" } | Select-Object MainWindowTitle, Id, MainWindowHandle
     }
-    
-    [PSMenuWin32Api]::SetForegroundWindow($WindowHandle)
-}
 
-
-# --- Core Menu Function ---
-
-function Show-Menu {
-    param(
-        [Parameter(Mandatory=$true)]
-        [object[]]$Items,
-        [string]$DisplayMember = ""
-    )
-
-    $form = New-Object System.Windows.Forms.Form
-    $form.FormBorderStyle = 'None'
-    $form.StartPosition = 'CenterScreen'
-    $form.TopMost = $true
-    $form.KeyPreview = $true # This property is crucial for the form to get key events first
-    $form.Size = New-Object System.Drawing.Size(600, 350)
-    
-    $inputBox = New-Object System.Windows.Forms.TextBox
-    $inputBox.Dock = 'Top'
-    $inputBox.Font = New-Object System.Drawing.Font("Consolas", 12)
-
-    $listBox = New-Object System.Windows.Forms.ListBox
-    $listBox.Dock = 'Fill'
-    $listBox.Font = New-Object System.Drawing.Font("Consolas", 11)
-    $listBox.BorderStyle = 'None'
-    
-    if ($DisplayMember -and $Items[0].PSObject.Properties[$DisplayMember]) {
-        $listBox.DisplayMember = $DisplayMember
+    function Set-ActiveWindow {
+        param(
+            [Parameter(Mandatory=$true)]
+            [IntPtr]$WindowHandle
+        )
+        
+        if ([PSMenuWin32Api]::IsIconic($WindowHandle)) {
+            [PSMenuWin32Api]::ShowWindow($WindowHandle, 9) # 9 is SW_RESTORE
+        }
+        
+        try {
+            $wshell = New-Object -ComObject wscript.shell
+            $wshell.SendKeys('%')
+            Start-Sleep -Milliseconds 50
+        } catch {
+            Write-Warning "Failed to create WScript.Shell object. Focus may not switch correctly. Error: $_"
+        }
+        
+        [PSMenuWin32Api]::SetForegroundWindow($WindowHandle)
     }
-    
-    $allItems = $Items
-    $script:selectedItem = $null
 
-    $form.Add_Load({
-        $listBox.Items.AddRange($allItems)
-        if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
-        Set-ActiveWindow -WindowHandle $form.Handle
-    })
+    function Show-Menu {
+        param(
+            [Parameter(Mandatory=$true)]
+            [object[]]$Items,
+            [string]$DisplayMember = ""
+        )
 
-    $form.Add_Shown({
-        $inputBox.Focus()
-    })
+        $form = New-Object System.Windows.Forms.Form
+        $form.FormBorderStyle = 'None'
+        $form.StartPosition = 'CenterScreen'
+        $form.TopMost = $true
+        $form.KeyPreview = $true
+        $form.Size = New-Object System.Drawing.Size(600, 350)
+        
+        $inputBox = New-Object System.Windows.Forms.TextBox
+        $inputBox.Dock = 'Top'
+        $inputBox.Font = New-Object System.Drawing.Font("Consolas", 12)
 
-    # ✅ CHANGED: The text box only needs to handle the Enter key now.
-    $inputBox.Add_KeyDown({
-        $e = $_
-        if ($e.KeyCode -eq 'Enter') {
-            if ($listBox.SelectedItem) {
+        $listBox = New-Object System.Windows.Forms.ListBox
+        $listBox.Dock = 'Fill'
+        $listBox.Font = New-Object System.Drawing.Font("Consolas", 11)
+        $listBox.BorderStyle = 'None'
+        
+        if ($DisplayMember -and $Items.Count -gt 0 -and $Items[0].PSObject.Properties[$DisplayMember]) {
+            $listBox.DisplayMember = $DisplayMember
+        }
+        
+        $allItems = $Items
+        $script:selectedItem = $null
+
+        $form.Add_Load({
+            $listBox.Items.AddRange($allItems)
+            if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
+            # Set-ActiveWindow can be problematic on form load, focusing on the inputbox is better.
+            # Set-ActiveWindow -WindowHandle $form.Handle
+        })
+
+        $form.Add_Shown({
+            $inputBox.Focus()
+        })
+
+        $inputBox.Add_KeyDown({
+            $e = $_
+            if ($e.KeyCode -eq 'Enter') {
+                if ($listBox.SelectedItem) {
+                    $script:selectedItem = $listBox.SelectedItem
+                    $form.Close()
+                }
+                $e.Handled = $true
+                $e.SuppressKeyPress = $true
+            }
+        })
+
+        $inputBox.Add_TextChanged({
+            $filterText = $inputBox.Text
+            $listBox.BeginUpdate()
+            $listBox.Items.Clear()
+            $filteredItems = if ($DisplayMember) { $allItems | Where-Object { $_.$DisplayMember -like "*$filterText*" } } else { $allItems | Where-Object { $_ -like "*$filterText*" } }
+            $listBox.Items.AddRange($filteredItems)
+            if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
+            $listBox.EndUpdate()
+        })
+        
+        $form.Add_KeyDown({
+            $e = $_
+            switch ($e.KeyCode) {
+                'Escape' {
+                    $script:selectedItem = $null
+                    $form.Close()
+                }
+                'ArrowDown' {
+                    if ($listBox.Items.Count -gt 0) {
+                        $newIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
+                        $listBox.SelectedIndex = $newIndex
+                    }
+                    $e.Handled = $true
+                }
+                'ArrowUp' {
+                    if ($listBox.Items.Count -gt 0) {
+                        $newIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
+                        $listBox.SelectedIndex = $newIndex
+                    }
+                    $e.Handled = $true
+                }
+            }
+        })
+
+        $listBox.Add_DoubleClick({ 
+            if ($listBox.SelectedItem) { 
                 $script:selectedItem = $listBox.SelectedItem
                 $form.Close()
-            }
-            $e.Handled = $true
-            $e.SuppressKeyPress = $true
-        }
-    })
+            } 
+        })
 
-    $inputBox.Add_TextChanged({
-        $filterText = $inputBox.Text
-        $listBox.BeginUpdate(); $listBox.Items.Clear()
-        $filteredItems = if ($DisplayMember) { $allItems | Where-Object { $_.$DisplayMember -like "*$filterText*" } } else { $allItems | Where-Object { $_ -like "*$filterText*" } }
-        $listBox.Items.AddRange($filteredItems)
-        if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
-        $listBox.EndUpdate()
-    })
-    
-    # ✅ CHANGED: The form now handles global keys like Escape and the Arrows.
-    $form.Add_KeyDown({
-        $e = $_
-        switch ($e.KeyCode) {
-            'Escape' {
-                $script:selectedItem = $null
-                $form.Close()
-            }
-            'ArrowDown' {
-                if ($listBox.Items.Count -gt 0) {
-                    $newIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
-                    $listBox.SelectedIndex = $newIndex
-                }
-                # Mark the event as handled to prevent the text box from using it.
-                $e.Handled = $true
-            }
-            'ArrowUp' {
-                if ($listBox.Items.Count -gt 0) {
-                    $newIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
-                    $listBox.SelectedIndex = $newIndex
-                }
-                # Mark the event as handled to prevent the text box from using it.
-                $e.Handled = $true
-            }
-        }
-    })
+        $form.Controls.AddRange(@($listBox, $inputBox))
+        $form.ShowDialog() | Out-Null
 
-    $listBox.Add_DoubleClick({ if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() } })
+        return $script:selectedItem
+    }
 
-    $form.Controls.AddRange(@($listBox, $inputBox))
-    $form.ShowDialog() | Out-Null
-
-    return $script:selectedItem
+    # Initialize a list to hold all items from the pipeline.
+    $script:collectedItems = [System.Collections.Generic.List[object]]::new()
 }
 
-# --- Script Execution Logic ---
-
-if ($Windows) {
-    $items = Get-WindowTitles
-    $selectedWindow = Show-Menu -Items $items -DisplayMember "MainWindowTitle"
-    
-    if ($selectedWindow) {
-        if ($Switch) {
-            Set-ActiveWindow -WindowHandle $selectedWindow.MainWindowHandle
+process {
+    # This block runs for each item piped to the script.
+    # We add each item to our collection list.
+    if ($null -ne $InputObject) {
+        foreach ($item in $InputObject) {
+            $script:collectedItems.Add($item)
         }
-        return $selectedWindow
     }
-} elseif ($InputObject) {
-    $selectedItem = Show-Menu -Items $InputObject
-    if ($selectedItem) {
-        return $selectedItem
+}
+
+end {
+    # This block runs only once, after all piped items have been processed or if run directly.
+    if ($Windows.IsPresent) {
+        $items = Get-WindowTitles
+        $selectedWindow = Show-Menu -Items $items -DisplayMember "MainWindowTitle"
+        
+        if ($selectedWindow) {
+            if ($Switch.IsPresent) {
+                Set-ActiveWindow -WindowHandle $selectedWindow.MainWindowHandle
+            }
+            Write-Output $selectedWindow
+        }
+    } 
+    elseif ($script:collectedItems.Count -gt 0) {
+        $selectedItem = Show-Menu -Items $script:collectedItems.ToArray()
+        if ($selectedItem) {
+            Write-Output $selectedItem
+        }
     }
 }
