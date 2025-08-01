@@ -1,18 +1,4 @@
 <#
-Copyright (C) 2024 Ali Almahdi
-
-This script is part of Ali's powershell scripts repository on GitHub
-Licensed under GNU AGPL-3.0 with Commons Clause License Condition v1.0
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU Affero General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version, with Commons Clause License Condition v1.0.
-
-For commercial licensing inquiries, contact: https://www.ali.ac/contact
-#>
-
-<#
 .SYNOPSIS
     A dmenu/rofi-like selectable menu for PowerShell.
 
@@ -68,24 +54,20 @@ if (-not ("PSMenuWin32Api" -as [type])) {
 
 # --- Helper Functions ---
 
-# Gets all processes that have a visible main window.
 function Get-WindowTitles {
     Get-Process | Where-Object { $_.MainWindowTitle -ne "" } | Select-Object MainWindowTitle, Id, MainWindowHandle
 }
 
-# Sets the specified window as the active foreground window.
 function Set-ActiveWindow {
     param(
         [Parameter(Mandatory=$true)]
         [IntPtr]$WindowHandle
     )
     
-    # Restore the window if it's minimized.
     if ([PSMenuWin32Api]::IsIconic($WindowHandle)) {
         [PSMenuWin32Api]::ShowWindow($WindowHandle, 9)
     }
     
-    # Use a COM object to send an ALT key press to gain focus-setting privileges.
     try {
         $wshell = New-Object -ComObject wscript.shell
         $wshell.SendKeys('%')
@@ -100,7 +82,6 @@ function Set-ActiveWindow {
 
 # --- Core Menu Function ---
 
-# Creates and displays the dmenu-style GUI.
 function Show-Menu {
     param(
         [Parameter(Mandatory=$true)]
@@ -108,12 +89,11 @@ function Show-Menu {
         [string]$DisplayMember = ""
     )
 
-    #region Form and Control Initialization
     $form = New-Object System.Windows.Forms.Form
     $form.FormBorderStyle = 'None'
     $form.StartPosition = 'CenterScreen'
     $form.TopMost = $true
-    $form.KeyPreview = $true
+    $form.KeyPreview = $true # This property is crucial for the form to get key events first
     $form.Size = New-Object System.Drawing.Size(600, 350)
     
     $inputBox = New-Object System.Windows.Forms.TextBox
@@ -131,34 +111,40 @@ function Show-Menu {
     
     $allItems = $Items
     $script:selectedItem = $null
-    #endregion
 
-    #region Event Handlers
-    
-    # Create a reusable script block to confirm the selection and close the form.
-    $confirmSelectionAction = {
-        param($event)
-        if ($listBox.SelectedItem) {
-            $script:selectedItem = $listBox.SelectedItem
-            $form.Close()
-        }
-        $event.Handled = $true
-        $event.SuppressKeyPress = $true
-    }
-
-    # On Load: Populate data and bring the form to the front.
     $form.Add_Load({
         $listBox.Items.AddRange($allItems)
         if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
         Set-ActiveWindow -WindowHandle $form.Handle
     })
 
-    # On Shown: Set initial focus to the input box.
     $form.Add_Shown({
         $inputBox.Focus()
     })
 
-    # On Form KeyDown: Handle global key presses like Escape and Arrows.
+    # ✅ CHANGED: The text box only needs to handle the Enter key now.
+    $inputBox.Add_KeyDown({
+        $e = $_
+        if ($e.KeyCode -eq 'Enter') {
+            if ($listBox.SelectedItem) {
+                $script:selectedItem = $listBox.SelectedItem
+                $form.Close()
+            }
+            $e.Handled = $true
+            $e.SuppressKeyPress = $true
+        }
+    })
+
+    $inputBox.Add_TextChanged({
+        $filterText = $inputBox.Text
+        $listBox.BeginUpdate(); $listBox.Items.Clear()
+        $filteredItems = if ($DisplayMember) { $allItems | Where-Object { $_.$DisplayMember -like "*$filterText*" } } else { $allItems | Where-Object { $_ -like "*$filterText*" } }
+        $listBox.Items.AddRange($filteredItems)
+        if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
+        $listBox.EndUpdate()
+    })
+    
+    # ✅ CHANGED: The form now handles global keys like Escape and the Arrows.
     $form.Add_KeyDown({
         $e = $_
         switch ($e.KeyCode) {
@@ -168,46 +154,24 @@ function Show-Menu {
             }
             'ArrowDown' {
                 if ($listBox.Items.Count -gt 0) {
-                    $listBox.SelectedIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
+                    $newIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
+                    $listBox.SelectedIndex = $newIndex
                 }
+                # Mark the event as handled to prevent the text box from using it.
                 $e.Handled = $true
-                $e.SuppressKeyPress = $true
             }
             'ArrowUp' {
                 if ($listBox.Items.Count -gt 0) {
-                    $listBox.SelectedIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
+                    $newIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
+                    $listBox.SelectedIndex = $newIndex
                 }
+                # Mark the event as handled to prevent the text box from using it.
                 $e.Handled = $true
-                $e.SuppressKeyPress = $true
             }
         }
     })
 
-    # Handle Enter key press on the text box.
-    $inputBox.Add_KeyDown({ & $confirmSelectionAction -event $_ })
-
-    # Handle Enter key press on the list box.
-    $listBox.Add_KeyDown({ & $confirmSelectionAction -event $_ })
-
-    # Handle filtering as the user types.
-    $inputBox.Add_TextChanged({
-        $filterText = $inputBox.Text
-        $listBox.BeginUpdate()
-        $listBox.Items.Clear()
-        $filteredItems = if ($DisplayMember) { $allItems | Where-Object { $_.$DisplayMember -like "*$filterText*" } } else { $allItems | Where-Object { $_ -like "*$filterText*" } }
-        $listBox.Items.AddRange($filteredItems)
-        if ($listBox.Items.Count -gt 0) { $listBox.SelectedIndex = 0 }
-        $listBox.EndUpdate()
-    })
-    
-    # Handle mouse double-click on the list box.
-    $listBox.Add_DoubleClick({
-        if ($listBox.SelectedItem) {
-            $script:selectedItem = $listBox.SelectedItem
-            $form.Close()
-        }
-    })
-    #endregion
+    $listBox.Add_DoubleClick({ if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() } })
 
     $form.Controls.AddRange(@($listBox, $inputBox))
     $form.ShowDialog() | Out-Null
@@ -217,7 +181,6 @@ function Show-Menu {
 
 # --- Script Execution Logic ---
 
-# Determine which set of items to display based on parameters.
 if ($Windows) {
     $items = Get-WindowTitles
     $selectedWindow = Show-Menu -Items $items -DisplayMember "MainWindowTitle"
