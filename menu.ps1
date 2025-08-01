@@ -93,7 +93,7 @@ function Show-Menu {
     $form.FormBorderStyle = 'None'
     $form.StartPosition = 'CenterScreen'
     $form.TopMost = $true
-    $form.KeyPreview = $true
+    $form.KeyPreview = $true # This property is crucial for the form to get key events first
     $form.Size = New-Object System.Drawing.Size(600, 350)
     
     $inputBox = New-Object System.Windows.Forms.TextBox
@@ -118,30 +118,20 @@ function Show-Menu {
         Set-ActiveWindow -WindowHandle $form.Handle
     })
 
-    # ✅ CHANGED: Use the 'Shown' event to set initial focus correctly.
     $form.Add_Shown({
         $inputBox.Focus()
     })
 
-    # ✅ CHANGED: More assertive handling of arrow keys.
+    # ✅ CHANGED: The text box only needs to handle the Enter key now.
     $inputBox.Add_KeyDown({
         $e = $_
-        switch ($e.KeyCode) {
-            'Enter' {
-                if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() }
-                $e.Handled = $true
-                $e.SuppressKeyPress = $true
+        if ($e.KeyCode -eq 'Enter') {
+            if ($listBox.SelectedItem) {
+                $script:selectedItem = $listBox.SelectedItem
+                $form.Close()
             }
-            'ArrowDown' {
-                if ($listBox.SelectedIndex + 1 -lt $listBox.Items.Count) { $listBox.SelectedIndex++ }
-                $e.Handled = $true
-                $e.SuppressKeyPress = $true
-            }
-            'ArrowUp' {
-                if ($listBox.SelectedIndex -gt 0) { $listBox.SelectedIndex-- }
-                $e.Handled = $true
-                $e.SuppressKeyPress = $true
-            }
+            $e.Handled = $true
+            $e.SuppressKeyPress = $true
         }
     })
 
@@ -154,7 +144,33 @@ function Show-Menu {
         $listBox.EndUpdate()
     })
     
-    $form.Add_KeyDown({ if ($_.KeyCode -eq 'Escape') { $script:selectedItem = $null; $form.Close() } })
+    # ✅ CHANGED: The form now handles global keys like Escape and the Arrows.
+    $form.Add_KeyDown({
+        $e = $_
+        switch ($e.KeyCode) {
+            'Escape' {
+                $script:selectedItem = $null
+                $form.Close()
+            }
+            'ArrowDown' {
+                if ($listBox.Items.Count -gt 0) {
+                    $newIndex = [Math]::Min($listBox.SelectedIndex + 1, $listBox.Items.Count - 1)
+                    $listBox.SelectedIndex = $newIndex
+                }
+                # Mark the event as handled to prevent the text box from using it.
+                $e.Handled = $true
+            }
+            'ArrowUp' {
+                if ($listBox.Items.Count -gt 0) {
+                    $newIndex = [Math]::Max($listBox.SelectedIndex - 1, 0)
+                    $listBox.SelectedIndex = $newIndex
+                }
+                # Mark the event as handled to prevent the text box from using it.
+                $e.Handled = $true
+            }
+        }
+    })
+
     $listBox.Add_DoubleClick({ if ($listBox.SelectedItem) { $script:selectedItem = $listBox.SelectedItem; $form.Close() } })
 
     $form.Controls.AddRange(@($listBox, $inputBox))
