@@ -12,6 +12,13 @@ the Free Software Foundation, either version 3 of the License, or
 For commercial licensing inquiries, contact: https://www.ali.ac/contact
 #>
 <#
+.NOTES
+    Author: Ali Almahdi (https://www.ali.ac)
+    License: GNU AGPL-3.0 with Commons Clause
+    Source: https://github.com/almahdi/powershell
+    Requires: PowerShell 5.1 or higher, Windows
+#>
+<#
 .SYNOPSIS
    Keeps the computer awake by simulating mouse movements.
 
