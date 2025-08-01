@@ -1,4 +1,17 @@
 <#
+Copyright (C) 2025 Ali Almahdi
+
+This script is part of Ali's powershell scripts repository on GitHub
+Licensed under GNU AGPL-3.0 with Commons Clause License Condition v1.0
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version, with Commons Clause License Condition v1.0.
+
+For commercial licensing inquiries, contact: https://www.ali.ac/contact
+#>
+<#
 .SYNOPSIS
     A dmenu/rofi-like selectable menu for PowerShell.
 
