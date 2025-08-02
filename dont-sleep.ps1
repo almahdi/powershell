@@ -20,10 +20,15 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 #>
 
 <#
-This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key every 20 seconds.
+This is a simple script that prevents the computer from going to sleep by sending the SCROLLLOCK key.
 #>
 
+param(
+    [int]$Delay = 20
+)
+
 Write-Host "Preventing the computer from going to sleep... Press CTRL+C to stop the script." -ForegroundColor Green
+Write-Host "Using delay of $Delay seconds between SCROLLLOCK toggles." -ForegroundColor Cyan
 
 # Create a new WScript.Shell COM object
 $wshell = New-Object -ComObject wscript.shell;
@@ -36,6 +41,6 @@ while($true) {
     Start-Sleep -Milliseconds 300
     # Send the SCROLLLOCK key to toggle it off
     $wshell.sendKeys("{SCROLLLOCK}");
-    # Wait for 30 seconds before repeating
-    Start-Sleep -Seconds 20
+    # Wait for specified delay before repeating
+    Start-Sleep -Seconds $Delay
 }
