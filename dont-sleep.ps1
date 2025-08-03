@@ -17,6 +17,7 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
     License: GNU AGPL-3.0 with Commons Clause
     Source: https://github.com/almahdi/powershell
     Requires: PowerShell 5.1 or higher, Windows
+    Version: 0.2
 #>
 
 <#
@@ -24,8 +25,16 @@ This is a simple script that prevents the computer from going to sleep by sendin
 #>
 
 param(
-    [int]$Delay = 20
+    [int]$Delay = 20,
+    [switch]$help
 )
+
+if ($help) {
+    Write-Host "Copyright (C) 2024 Ali Almahdi"
+    Write-Host "Script: dont-sleep.ps1"
+    Write-Host "Source: https://github.com/almahdi/powershell"
+    return
+}
 
 Write-Host "Preventing the computer from going to sleep... Press CTRL+C to stop the script." -ForegroundColor Green
 Write-Host "Using delay of $Delay seconds between SCROLLLOCK toggles." -ForegroundColor Cyan
