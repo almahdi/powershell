@@ -41,14 +41,44 @@ function Get-WindowTitles {
 
 function Set-ActiveWindow {
     param([IntPtr]$WindowHandle)
-    try {
-        [Win32]::SetForegroundWindow($WindowHandle)
-        Start-Sleep -Milliseconds 100
-        return $true
-    } catch {
-        Write-Warning "Failed to activate window: $_"
-        return $false
+
+    # Add Win32 API helpers if not already present
+    if (-not ([System.Management.Automation.PSTypeName]'Win32ApiHelper').Type) {
+        Add-Type @"
+            using System;
+            using System.Runtime.InteropServices;
+            public class Win32ApiHelper {
+                private const int SW_RESTORE = 9;
+
+                [DllImport("user32.dll")]
+                public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+                [DllImport("user32.dll")]
+                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+                [DllImport("user32.dll")]
+                public static extern bool IsIconic(IntPtr hWnd);
+            }
+"@
     }
+
+    # Restore if minimized
+    if ([Win32ApiHelper]::IsIconic($WindowHandle)) {
+        [Win32ApiHelper]::ShowWindow($WindowHandle, 9) # SW_RESTORE
+    }
+    Start-Sleep -Milliseconds 300
+
+    try {
+        $wshell = New-Object -ComObject wscript.shell
+        $wshell.SendKeys('%')
+        Start-Sleep -Milliseconds 50
+    } catch {
+        Write-Warning "Failed to create WScript.Shell object. Focus may not switch correctly. Error: $_"
+    }
+
+    [Win32ApiHelper]::SetForegroundWindow($WindowHandle)
+    Start-Sleep -Milliseconds 100
+    return $true
 }
 
 function Send-KeyStrokes {
