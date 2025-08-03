@@ -35,7 +35,7 @@ if (-not ([System.Management.Automation.PSTypeName]'Win32').Type) {
 
 function Get-WindowTitles {
     $windows = Get-Process | Where-Object {$_.MainWindowTitle -ne ""} | 
-        Select-Object MainWindowTitle, MainWindowHandle
+        Select-Object MainWindowTitle, MainWindowHandle, ProcessName
     return $windows
 }
 
@@ -65,18 +65,78 @@ function Send-KeyStrokes {
 function Show-AboutWindow {
     $aboutForm = New-Object System.Windows.Forms.Form
     $aboutForm.Text = "About"
-    $aboutForm.Size = New-Object System.Drawing.Size(300,200)
     $aboutForm.StartPosition = "CenterParent"
     $aboutForm.FormBorderStyle = "FixedDialog"
     $aboutForm.MaximizeBox = $false
     $aboutForm.MinimizeBox = $false
+    $aboutForm.Padding = New-Object System.Windows.Forms.Padding(20)
+    $aboutForm.AutoSize = $true
+    $aboutForm.AutoSizeMode = "GrowAndShrink"
 
-    $label = New-Object System.Windows.Forms.Label
-    $label.Location = New-Object System.Drawing.Point(10,20)
-    $label.Size = New-Object System.Drawing.Size(280,120)
-    $label.Text = "Type in Window by Ali Almahdi`nhttps://www.ali.ac`n`nVersion 1.0`n`nA simple utility to type text into other windows.`n`nCreated with PowerShell"
-    
-    $aboutForm.Controls.Add($label)
+    $layoutPanel = New-Object System.Windows.Forms.TableLayoutPanel
+    $layoutPanel.Dock = "Fill"
+    $layoutPanel.AutoSize = $true
+    $layoutPanel.ColumnCount = 1
+    $layoutPanel.RowCount = 6
+
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "Type in Window"
+    $titleLabel.Font = New-Object System.Drawing.Font("Segoe UI", 14, [System.Drawing.FontStyle]::Bold)
+    $titleLabel.AutoSize = $true
+    $titleLabel.Margin = New-Object System.Windows.Forms.Padding(0,0,0,10)
+
+    $authorLabel = New-Object System.Windows.Forms.LinkLabel
+    $authorLabel.Text = "by Ali Almahdi (https://www.ali.ac)"
+    $authorLabel.Font = New-Object System.Drawing.Font("Segoe UI", 10)
+    $authorLabel.AutoSize = $true
+    $authorLabel.Margin = New-Object System.Windows.Forms.Padding(0,0,0,20)
+    $authorLabel.Links.Add(17, 18, "https://www.ali.ac") | Out-Null
+    $authorLabel.add_LinkClicked({
+        param($sender, $e)
+        Start-Process $e.Link.LinkData
+    })
+
+    $descriptionLabel = New-Object System.Windows.Forms.Label
+    $descriptionLabel.Text = "A simple utility to type text into other windows, created with PowerShell."
+    $descriptionLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $descriptionLabel.AutoSize = $true
+    $descriptionLabel.Margin = New-Object System.Windows.Forms.Padding(0,0,0,20)
+
+    $githubLinkLabel = New-Object System.Windows.Forms.LinkLabel
+    $githubLinkLabel.Text = "Source code on GitHub"
+    $githubLinkLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $githubLinkLabel.AutoSize = $true
+    $githubLinkLabel.Margin = New-Object System.Windows.Forms.Padding(0,0,0,20)
+    $githubLinkLabel.Links.Add(0, $githubLinkLabel.Text.Length, "https://github.com/almahdi/powershell") | Out-Null
+    $githubLinkLabel.add_LinkClicked({
+        param($sender, $e)
+        Start-Process $e.Link.LinkData
+    })
+
+    $licenseLabel = New-Object System.Windows.Forms.LinkLabel
+    $licenseLabel.Text = "Licensed under GNU AGPL-3.0 with Commons Clause"
+    $licenseLabel.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+    $licenseLabel.AutoSize = $true
+    $licenseLabel.Margin = New-Object System.Windows.Forms.Padding(0,0,0,20)
+    $licenseLabel.Links.Add(0, $licenseLabel.Text.Length, "LICENSE") | Out-Null
+    $licenseLabel.add_LinkClicked({
+        param($sender, $e)
+        Start-Process -FilePath (Join-Path $PSScriptRoot $e.Link.LinkData)
+    })
+
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $okButton.Dock = "Fill"
+
+    $layoutPanel.Controls.Add($titleLabel)
+    $layoutPanel.Controls.Add($authorLabel)
+    $layoutPanel.Controls.Add($descriptionLabel)
+    $layoutPanel.Controls.Add($githubLinkLabel)
+    $layoutPanel.Controls.Add($licenseLabel)
+    $layoutPanel.Controls.Add($okButton)
+
+    $aboutForm.Controls.Add($layoutPanel)
     $aboutForm.ShowDialog()
 }
 
@@ -159,13 +219,11 @@ $aboutButton.Add_Click({ Show-AboutWindow })
 # Add controls to form
 $form.Controls.AddRange(@($windowLabel, $comboBox, $refreshButton, $textLabel, $textBox, $sendButton, $aboutButton))
 
-# Set focus to the form on load
+# Set focus to the form on load and populate window list
 $form.Add_Load({
     $form.Activate()
+    $refreshButton.PerformClick()
 })
-
-# Initial window list population
-$refreshButton.PerformClick()
 
 # Show form
 $form.ShowDialog()
