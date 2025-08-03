@@ -21,7 +21,9 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 
 # Import required assemblies
 Add-Type -AssemblyName System.Windows.Forms
-if (-not ([System.Management.Automation.PSTypeName]'Win32').Type) {
+
+# Win32 and Win32ApiHelper for window focus/restore
+if (-not ([System.Management.Automation.PSTypeName]'Win32').Type -or -not ([System.Management.Automation.PSTypeName]'Win32ApiHelper').Type) {
     Add-Type @"
     using System;
     using System.Runtime.InteropServices;
@@ -29,6 +31,18 @@ if (-not ([System.Management.Automation.PSTypeName]'Win32').Type) {
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
+    }
+    public class Win32ApiHelper {
+        private const int SW_RESTORE = 9;
+
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        [DllImport("user32.dll")]
+        public static extern bool IsIconic(IntPtr hWnd);
     }
 "@
 }
@@ -41,26 +55,6 @@ function Get-WindowTitles {
 
 function Set-ActiveWindow {
     param([IntPtr]$WindowHandle)
-
-    # Add Win32 API helpers if not already present
-    if (-not ([System.Management.Automation.PSTypeName]'Win32ApiHelper').Type) {
-        Add-Type @"
-            using System;
-            using System.Runtime.InteropServices;
-            public class Win32ApiHelper {
-                private const int SW_RESTORE = 9;
-
-                [DllImport("user32.dll")]
-                public static extern bool SetForegroundWindow(IntPtr hWnd);
-
-                [DllImport("user32.dll")]
-                public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
-
-                [DllImport("user32.dll")]
-                public static extern bool IsIconic(IntPtr hWnd);
-            }
-"@
-    }
 
     # Restore if minimized
     if ([Win32ApiHelper]::IsIconic($WindowHandle)) {
