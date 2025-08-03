@@ -21,7 +21,8 @@ For commercial licensing inquiries, contact: https://www.ali.ac/contact
 
 # Import required assemblies
 Add-Type -AssemblyName System.Windows.Forms
-Add-Type @"
+if (-not ([System.Management.Automation.PSTypeName]'Win32').Type) {
+    Add-Type @"
     using System;
     using System.Runtime.InteropServices;
     public class Win32 {
@@ -30,6 +31,7 @@ Add-Type @"
         public static extern bool SetForegroundWindow(IntPtr hWnd);
     }
 "@
+}
 
 function Get-WindowTitles {
     $windows = Get-Process | Where-Object {$_.MainWindowTitle -ne ""} | 
@@ -81,26 +83,32 @@ function Show-AboutWindow {
 # Create the form
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Type in Window"
-$form.Size = New-Object System.Drawing.Size(400,240)
+$form.Size = New-Object System.Drawing.Size(420, 270)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
 $form.MaximizeBox = $false
+$form.Font = New-Object System.Drawing.Font("Segoe UI", 9)
+
+# Set a modern color scheme
+$form.BackColor = [System.Drawing.Color]::FromArgb(255, 240, 240, 240)
+$form.ForeColor = [System.Drawing.Color]::FromArgb(255, 48, 48, 48)
 
 # Window selection label
 $windowLabel = New-Object System.Windows.Forms.Label
-$windowLabel.Location = New-Object System.Drawing.Point(10,10)
-$windowLabel.Size = New-Object System.Drawing.Size(280,15)
+$windowLabel.Location = New-Object System.Drawing.Point(20, 20)
+$windowLabel.Size = New-Object System.Drawing.Size(280, 15)
 $windowLabel.Text = "Select Window:"
 
 # Window selection combo box
 $comboBox = New-Object System.Windows.Forms.ComboBox
-$comboBox.Location = New-Object System.Drawing.Point(10,30)
-$comboBox.Size = New-Object System.Drawing.Size(280,20)
+$comboBox.Location = New-Object System.Drawing.Point(20, 40)
+$comboBox.Size = New-Object System.Drawing.Size(280, 25)
+$comboBox.DropDownStyle = "DropDownList"
 
 # Refresh button
 $refreshButton = New-Object System.Windows.Forms.Button
-$refreshButton.Location = New-Object System.Drawing.Point(300,30)
-$refreshButton.Size = New-Object System.Drawing.Size(80,20)
+$refreshButton.Location = New-Object System.Drawing.Point(310, 39)
+$refreshButton.Size = New-Object System.Drawing.Size(80, 27)
 $refreshButton.Text = "Refresh"
 $refreshButton.Add_Click({
     $comboBox.Items.Clear()
@@ -111,20 +119,25 @@ $refreshButton.Add_Click({
 
 # Text input label
 $textLabel = New-Object System.Windows.Forms.Label
-$textLabel.Location = New-Object System.Drawing.Point(10,60)
-$textLabel.Size = New-Object System.Drawing.Size(370,15)
+$textLabel.Location = New-Object System.Drawing.Point(20, 80)
+$textLabel.Size = New-Object System.Drawing.Size(370, 15)
 $textLabel.Text = "Text to Type:"
 
 # Text input
 $textBox = New-Object System.Windows.Forms.TextBox
-$textBox.Location = New-Object System.Drawing.Point(10,80)
-$textBox.Size = New-Object System.Drawing.Size(370,20)
+$textBox.Location = New-Object System.Drawing.Point(20, 100)
+$textBox.Size = New-Object System.Drawing.Size(370, 25)
 
 # Send button
 $sendButton = New-Object System.Windows.Forms.Button
-$sendButton.Location = New-Object System.Drawing.Point(10,120)
-$sendButton.Size = New-Object System.Drawing.Size(370,30)
+$sendButton.Location = New-Object System.Drawing.Point(20, 140)
+$sendButton.Size = New-Object System.Drawing.Size(370, 35)
 $sendButton.Text = "Type Text in Selected Window"
+$sendButton.Font = New-Object System.Drawing.Font("Segoe UI", 10, [System.Drawing.FontStyle]::Bold)
+$sendButton.BackColor = [System.Drawing.Color]::FromArgb(255, 0, 122, 204)
+$sendButton.ForeColor = [System.Drawing.Color]::White
+$sendButton.FlatStyle = "Flat"
+$sendButton.FlatAppearance.BorderSize = 0
 $sendButton.Add_Click({
     if ($comboBox.SelectedItem -and $textBox.Text) {
         $window = $comboBox.SelectedItem
@@ -138,13 +151,18 @@ $sendButton.Add_Click({
 
 # About button
 $aboutButton = New-Object System.Windows.Forms.Button
-$aboutButton.Location = New-Object System.Drawing.Point(10,160)
-$aboutButton.Size = New-Object System.Drawing.Size(370,30)
+$aboutButton.Location = New-Object System.Drawing.Point(20, 185)
+$aboutButton.Size = New-Object System.Drawing.Size(370, 35)
 $aboutButton.Text = "About"
 $aboutButton.Add_Click({ Show-AboutWindow })
 
 # Add controls to form
 $form.Controls.AddRange(@($windowLabel, $comboBox, $refreshButton, $textLabel, $textBox, $sendButton, $aboutButton))
+
+# Set focus to the form on load
+$form.Add_Load({
+    $form.Activate()
+})
 
 # Initial window list population
 $refreshButton.PerformClick()
